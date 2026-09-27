@@ -1,13 +1,49 @@
 ﻿"use client";
 
+import { useEffect, useState } from "react";
+
 export default function Home() {
+  const [backendStatus, setBackendStatus] = useState("Checking...");
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/health")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Backend unavailable");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setBackendStatus(
+          data.status === "healthy" ? "Connected" : "Unavailable"
+        );
+      })
+      .catch(() => {
+        setBackendStatus("Unavailable");
+      });
+  }, []);
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto max-w-7xl px-6 py-10">
         <header className="mb-10">
-          <p className="mb-2 text-sm font-medium text-blue-400">
-            AI RESEARCH & ENGINEERING OS
-          </p>
+          <div className="mb-4 flex items-center gap-3">
+            <p className="text-sm font-medium text-blue-400">
+              AI RESEARCH & ENGINEERING OS
+            </p>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                backendStatus === "Connected"
+                  ? "bg-green-500/10 text-green-400"
+                  : backendStatus === "Unavailable"
+                    ? "bg-red-500/10 text-red-400"
+                    : "bg-yellow-500/10 text-yellow-400"
+              }`}
+            >
+              Backend: {backendStatus}
+            </span>
+          </div>
 
           <h1 className="text-4xl font-bold tracking-tight">
             Your intelligent research workspace.
