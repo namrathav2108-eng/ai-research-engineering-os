@@ -4,6 +4,8 @@ import fitz
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.services.chunking import chunk_text
+
 app = FastAPI(
     title="AI Research & Engineering OS",
     description="AI-powered research and engineering workspace.",
@@ -106,4 +108,53 @@ async def extract_document(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=400,
             detail=f"Could not extract PDF text: {exc}",
+        ) from exc
+
+
+@app.post("/documents/chunk")
+async def chunk_document(file: UploadFile = File(...)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are supported.",
+        )
+
+    contents = await file.read()
+
+    try:
+        document = fitz.open(stream=contents, filetype="pdf")
+
+        all_chunks = []
+
+        for page_number, page in enumerate(document, start=1):
+            text = page.get_text("text").strip()
+
+            if not text:
+                continue
+
+            chunks = chunk_text(text)
+
+            for chunk in chunks:
+                all_chunks.append(
+                    {
+                        "chunk_id": len(all_chunks),
+                        "page_number": page_number,
+                        "text": chunk.text,
+                    }
+                )
+
+        page_count = len(document)
+        document.close()
+
+        return {
+            "filename": file.filename,
+            "page_count": page_count,
+            "chunk_count": len(all_chunks),
+            "chunks": all_chunks,
+        }
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not chunk PDF: {exc}",
         ) from exc
